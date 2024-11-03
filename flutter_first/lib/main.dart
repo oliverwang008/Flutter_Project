@@ -122,7 +122,7 @@ class GeneratorPage extends StatelessWidget {
     }
 
     return Center(
-        child: Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           BigCard(pair: pair),
@@ -189,23 +189,16 @@ class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    final theme = Theme.of(context);
-
-    final style = theme.textTheme.displayMedium!.copyWith(
-      color: theme.colorScheme.onPrimary,
-    );
-
     var appState = context.watch<MyAppState>();
 
     return Center(
       child: ListView(
         children: [
           for (WordPair fv in appState.favorites)
-          Text(
-            fv.asLowerCase,
-            style: style,
-            semanticsLabel: "${fv.first} ${fv.second}",
-          )
+            ListTile(
+              leading: Icon(Icons.favorite),
+              title: Text("${fv.first} ${fv.second}"),
+            ),
         ],
       ),
     );
