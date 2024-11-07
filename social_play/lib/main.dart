@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(MyApp());
 }
 
 // In-memory list to hold registered players
-List<Player> playersList = [];
+//List<Player> playersList = [];
 
 class MyApp extends StatelessWidget {
   @override
@@ -27,11 +33,33 @@ class MyApp extends StatelessWidget {
 
 // Model for Player
 class Player {
+  String id;
   String name;
   String grade;
   String membership;
 
-  Player({required this.name, required this.grade, required this.membership});
+  Player(
+      {required this.id,
+      required this.name,
+      required this.grade,
+      required this.membership});
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'grade': grade,
+      'membership': membership,
+    };
+  }
+
+  static Player fromMap(Map<String, dynamic> map, String id) {
+    return Player(
+      id: id,
+      name: map['name'],
+      grade: map['grade'],
+      membership: map['membership'],
+    );
+  }
 }
 
 class RegistrationScreen extends StatefulWidget {
@@ -51,13 +79,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     super.dispose();
   }
 
-  void _register() {
+  void _register() async {
     if (_formKey.currentState!.validate()) {
-      playersList.add(Player(
-        name: _nameController.text,
-        grade: _selectedGrade ?? 'Not selected',
-        membership: _selectedMembership ?? 'Not selected',
-      ));
+      await FirebaseFirestore.instance.collection('players').add({
+        'name': _nameController.text,
+        'grade': _selectedGrade,
+        'membership': _selectedMembership,
+      });
+      _nameController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Player registered successfully!')),
       );
@@ -167,16 +196,52 @@ class ManageScreen extends StatefulWidget {
 }
 
 class _ManageScreenState extends State<ManageScreen> {
+  List<Player> _players = [];
+  List<Player> _filteredPlayers = [];
+
   Player? _selectedPlayer;
-  final _nameController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   String? _selectedGrade;
   String? _selectedMembership;
   String _searchQuery = '';
 
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      _filterPlayers();
+    });
+  }
+
+  Future<void> _fetchPlayers() async {
+    QuerySnapshot querySnapshot =
+        await FirebaseFirestore.instance.collection('players').get();
+    setState(() {
+      _players = querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return Player(
+            id: doc.id,
+            name: data['name'],
+            grade: data['grade'],
+            membership: data['membership']);
+      }).toList();
+      _filteredPlayers = _players;
+    });
+  }
+
+  void _filterPlayers() {
+    String query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredPlayers = _players
+          .where((player) => player.name.toLowerCase().contains(query))
+          .toList();
+    });
+  }
+
   void _editPlayer() {
     if (_selectedPlayer != null && _selectedPlayer!.name.isNotEmpty) {
       setState(() {
-        _selectedPlayer!.name = _nameController.text;
+        _selectedPlayer!.name = _searchController.text;
         _selectedPlayer!.grade = _selectedGrade ?? _selectedPlayer!.grade;
         _selectedPlayer!.membership =
             _selectedMembership ?? _selectedPlayer!.membership;
@@ -189,7 +254,7 @@ class _ManageScreenState extends State<ManageScreen> {
   void _selectPlayer(Player player) {
     setState(() {
       _selectedPlayer = player;
-      _nameController.text = player.name;
+      _searchController.text = player.name;
       _selectedGrade = player.grade;
       _selectedMembership = player.membership;
     });
@@ -197,10 +262,6 @@ class _ManageScreenState extends State<ManageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    List<Player> filteredPlayers = playersList
-        .where((player) =>
-            player.name.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -227,14 +288,17 @@ class _ManageScreenState extends State<ManageScreen> {
                   ),
                   SizedBox(height: 16),
                   Expanded(
-                    child: filteredPlayers.isEmpty
-                        ? Center(
-                            child: Text('No players found.',
-                                style: TextStyle(fontSize: 18)))
-                        : ListView.builder(
-                            itemCount: filteredPlayers.length,
+                    child: FutureBuilder(
+                      future: _fetchPlayers(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        }
+                        return ListView.builder(
+                            itemCount: _filteredPlayers.length,
                             itemBuilder: (context, index) {
-                              final player = filteredPlayers[index];
+                              final player = _filteredPlayers[index];
                               return Card(
                                 margin: EdgeInsets.symmetric(vertical: 8),
                                 child: ListTile(
@@ -245,7 +309,9 @@ class _ManageScreenState extends State<ManageScreen> {
                                 ),
                               );
                             },
-                          ),
+                          );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -269,7 +335,7 @@ class _ManageScreenState extends State<ManageScreen> {
                                 fontSize: 18, fontWeight: FontWeight.bold)),
                         SizedBox(height: 16),
                         TextFormField(
-                          controller: _nameController,
+                          controller: _searchController,
                           decoration: InputDecoration(labelText: 'Name'),
                         ),
                         SizedBox(height: 16),
