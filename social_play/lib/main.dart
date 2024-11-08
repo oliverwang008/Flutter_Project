@@ -233,11 +233,34 @@ class _ManageScreenState extends State<ManageScreen> {
       setState(() {
         _selectedPlayer!.name = _nameController.text;
         _selectedPlayer!.grade = _selectedGrade ?? _selectedPlayer!.grade;
-        _selectedPlayer!.membership =
-            _selectedMembership ?? _selectedPlayer!.membership;
+        _selectedPlayer!.membership = _selectedMembership ?? _selectedPlayer!.membership;
+        _updatePlayerInfo(_selectedPlayer!.id, toMap(_selectedPlayer!));
       });
+    }
+  }
+
+  Map<String, dynamic> toMap(Player toMapPlayer) {
+    return {
+      'id': toMapPlayer.id,
+      'name': toMapPlayer.name,
+      'grade': toMapPlayer.grade,
+      'membership': toMapPlayer.membership,
+    };
+  }
+
+  Future<void> _updatePlayerInfo(
+      String playerId, Map<String, dynamic> updatedData) async {
+    try {
+      // Reference to the player document in the 'players' collection
+      await FirebaseFirestore.instance
+          .collection('players')
+          .doc(playerId)
+          .update(updatedData);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Player details updated')));
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to update player in database')));
     }
   }
 
