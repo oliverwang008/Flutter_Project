@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 
-void main() async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+void main() {
   runApp(MyApp());
 }
 
 // In-memory list to hold registered players
-//List<Player> playersList = [];
+List<Player> playersList = [];
 
 class MyApp extends StatelessWidget {
   @override
@@ -33,33 +27,11 @@ class MyApp extends StatelessWidget {
 
 // Model for Player
 class Player {
-  String id;
   String name;
   String grade;
   String membership;
 
-  Player(
-      {required this.id,
-      required this.name,
-      required this.grade,
-      required this.membership});
-
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'grade': grade,
-      'membership': membership,
-    };
-  }
-
-  static Player fromMap(Map<String, dynamic> map, String id) {
-    return Player(
-      id: id,
-      name: map['name'],
-      grade: map['grade'],
-      membership: map['membership'],
-    );
-  }
+  Player({required this.name, required this.grade, required this.membership});
 }
 
 class RegistrationScreen extends StatefulWidget {
@@ -79,14 +51,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     super.dispose();
   }
 
-  void _register() async {
+  void _register() {
     if (_formKey.currentState!.validate()) {
-      await FirebaseFirestore.instance.collection('players').add({
-        'name': _nameController.text,
-        'grade': _selectedGrade,
-        'membership': _selectedMembership,
-      });
-      _nameController.clear();
+      playersList.add(Player(
+        name: _nameController.text,
+        grade: _selectedGrade ?? 'Not selected',
+        membership: _selectedMembership ?? 'Not selected',
+      ));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Player registered successfully!')),
       );
@@ -196,37 +167,11 @@ class ManageScreen extends StatefulWidget {
 }
 
 class _ManageScreenState extends State<ManageScreen> {
-  List<Player> _players = [];
-  List<Player> _filteredPlayers = [];
-
   Player? _selectedPlayer;
   final _nameController = TextEditingController();
   String? _selectedGrade;
   String? _selectedMembership;
   String _searchQuery = '';
-  Future? _playersFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _playersFuture = _fetchPlayers();
-  }
-
-  Future<void> _fetchPlayers() async {
-    QuerySnapshot querySnapshot =
-        await FirebaseFirestore.instance.collection('players').get();
-    setState(() {
-      _players = querySnapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return Player(
-            id: doc.id,
-            name: data['name'],
-            grade: data['grade'],
-            membership: data['membership']);
-      }).toList();
-      _filteredPlayers = _players;
-    });
-  }
 
   void _editPlayer() {
     if (_selectedPlayer != null && _selectedPlayer!.name.isNotEmpty) {
@@ -252,7 +197,7 @@ class _ManageScreenState extends State<ManageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    _filteredPlayers = _players
+    List<Player> filteredPlayers = playersList
         .where((player) =>
             player.name.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
@@ -282,17 +227,14 @@ class _ManageScreenState extends State<ManageScreen> {
                   ),
                   SizedBox(height: 16),
                   Expanded(
-                    child: FutureBuilder(
-                      future: _playersFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Center(child: CircularProgressIndicator());
-                        }
-                        return ListView.builder(
-                            itemCount: _filteredPlayers.length,
+                    child: filteredPlayers.isEmpty
+                        ? Center(
+                            child: Text('No players found.',
+                                style: TextStyle(fontSize: 18)))
+                        : ListView.builder(
+                            itemCount: filteredPlayers.length,
                             itemBuilder: (context, index) {
-                              final player = _filteredPlayers[index];
+                              final player = filteredPlayers[index];
                               return Card(
                                 margin: EdgeInsets.symmetric(vertical: 8),
                                 child: ListTile(
@@ -303,9 +245,7 @@ class _ManageScreenState extends State<ManageScreen> {
                                 ),
                               );
                             },
-                          );
-                      },
-                    ),
+                          ),
                   ),
                 ],
               ),
