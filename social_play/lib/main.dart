@@ -398,18 +398,157 @@ class _ManageScreenState extends State<ManageScreen> {
   }
 }
 
-class PlayScreen extends StatelessWidget {
+class PlayScreen extends StatefulWidget {
+  @override
+  _PlayScreenState createState() => _PlayScreenState();
+}
+
+class _PlayScreenState extends State<PlayScreen> {
+  List<Player> _players = [];
+  List<Player> _filteredPlayers = [];
+  Future? _playersFuture;
+  String _searchQuery = ''; // Holds the current search query
+
+  @override
+  void initState() {
+    super.initState();
+    _playersFuture = _fetchPlayers();
+  }
+
+  Future<void> _fetchPlayers() async {
+    QuerySnapshot querySnapshot =
+        await FirebaseFirestore.instance.collection('players').get();
+    setState(() {
+      _players = querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return Player(
+            id: doc.id,
+            name: data['name'],
+            grade: data['grade'],
+            membership: data['membership']);
+      }).toList();
+      _filteredPlayers = _players;
+    });
+  }
+
+  Map<String, dynamic> toMap(Player toMapPlayer) {
+    return {
+      'id': toMapPlayer.id,
+      'name': toMapPlayer.name,
+      'grade': toMapPlayer.grade,
+      'membership': toMapPlayer.membership,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
+    _filteredPlayers = _players
+        .where((player) =>
+            player.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Play'),
+        title: Text("Play Page"),
       ),
       drawer: AppDrawer(),
-      body: Center(
+      body: Row(
+        children: [
+          // Column 1 with 6 identical areas
+          Expanded(
+            child: Column(
+              children: List.generate(6,
+                  (index) => buildArea("Area ${index + 1}", Colors.blue[100]!)),
+            ),
+          ),
+          // Column 2 with 6 identical areas
+          Expanded(
+            child: Column(
+              children: List.generate(
+                  6,
+                  (index) =>
+                      buildArea("Area ${index + 7}", Colors.green[100]!)),
+            ),
+          ),
+          // Column 3 with 2 identical areas
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(child: buildArea("Area 13", Colors.purple[100]!)),
+                Expanded(child: buildArea("Area 14", Colors.purple[100]!)),
+              ],
+            ),
+          ),
+          // Column 4 with a search box and a list of players
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    "Player List",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                // Search box
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: "Search players",
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0)),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.toLowerCase();
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(height: 10),
+                // Filtered player list based on search query
+                Expanded(
+                  child: FutureBuilder(
+                    future: _playersFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                    return ListView(
+                    children: _filteredPlayers
+                        .where((player) =>
+                            player.name.toLowerCase().contains(_searchQuery))
+                        .map((player) => ListTile(
+                              title: Text(player.name),
+                              leading: Icon(Icons.person),
+                            ))
+                        .toList(),
+                      );
+                    }
+                  
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper widget to build each area
+  Widget buildArea(String title, Color color) {
+    return Container(
+      margin: const EdgeInsets.all(4.0),
+      color: color,
+      child: Center(
         child: Text(
-          'Welcome to the Play Page!',
-          style: TextStyle(fontSize: 24),
+          title,
+          style: TextStyle(fontSize: 16),
         ),
       ),
     );
