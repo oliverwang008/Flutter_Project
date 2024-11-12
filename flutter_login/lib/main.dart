@@ -3,10 +3,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens/signin.dart';
 import 'screens/signup.dart';
 import 'screens/forgetpassword.dart';
+import 'screens/welcome_screen.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(MyApp());
 }
 
@@ -23,6 +27,7 @@ class MyApp extends StatelessWidget {
         '/signin': (context) => SignInScreen(),
         '/signup': (context) => SignUpScreen(),
         '/forgetpassword': (context) => ForgetPasswordScreen(),
+        '/welcome': (context) => WelcomeScreen(),
       },
     );
   }
