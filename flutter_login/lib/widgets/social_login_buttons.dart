@@ -3,12 +3,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+final GoogleSignIn googleSignIn = GoogleSignIn(
+  clientId: "911915845910-bstj29tfaga24f0jf35blv4e4ou527vs.apps.googleusercontent.com",
+);
+
 
 class SocialLoginButtons extends StatelessWidget {
   // Function to handle Google Sign-In
   Future<void> _signInWithGoogle(BuildContext context) async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return; // User canceled the sign-in
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
